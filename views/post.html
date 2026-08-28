@@ -1,0 +1,43 @@
+<a href="usersList"> post example </a>
+<form>
+    <input type="text" class="name"  placeholder="name">
+
+    <input type="submit" >
+   </form>
+   <p class="message"> </p>
+ 
+<script>
+  
+const form= document.querySelector("form");
+
+   const firstName= document.querySelector(".name");
+   const message= document.querySelector(".message");
+
+   form.addEventListener("input", (e)=> {
+    e.preventDefault(); 
+    fetch("/check",  {
+    method:"POST", 
+    headers: {
+        "Content-Type": "application/json"
+    }, 
+    
+    body: JSON.stringify({
+    name: firstName.value,
+    }) 
+    }).then(async (res) => {
+        const data = await res.json();
+
+if (res.ok) {
+message.textContent = "success" + " " + data.message ;
+message.style.color = "green";
+//window.location.href = data.redirect;
+
+} else {
+message.textContent = data.error || "failed";
+message.style.color = "red";
+}
+})
+
+})
+
+  </script>
