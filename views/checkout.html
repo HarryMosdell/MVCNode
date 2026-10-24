@@ -1,0 +1,455 @@
+<script src="https://js.stripe.com/v3/"></script>
+
+
+
+<div class="checkout-page">
+    
+    <h1>Checkout</h1>
+
+    <div class="checkout-container">
+
+        <div class="checkout-details">
+
+            <h2>Billing Details</h2>
+
+            <form id="checkout-form">
+
+                <div class="form-group">
+                    <label for="first-name">First Name</label>
+                    <input
+                        type="text"
+                        id="first-name"
+                        name="firstName"
+                        
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="last-name">Last Name</label>
+                    <input
+                        type="text"
+                        id="last-name"
+                        name="lastName"
+                        
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input
+                        type="email"
+                        id="email"
+                        name="email"
+                        
+                    >
+                </div> 
+
+                <div class="form-group">
+                    <label for="address">Address</label>
+                    <input
+                        type="text"
+                        id="address"
+                        name="address"
+                        
+                    >
+                </div>
+
+                <div class="form-row">
+
+                    <div class="form-group">
+                        <label for="city">City</label>
+                        <input
+                            type="text"
+                            id="city"
+                            name="city"
+                            
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label for="postcode">Postcode</label>
+                        <input
+                            type="text"
+                            id="postcode"
+                            name="postcode"
+                            
+                        >
+                    </div>
+
+                </div>
+                <h2>Payment</h2>
+
+                <div class="form-group">
+                    <label for="card-name">Name on Card</label>
+                    <input
+                        type="text"
+                        id="card-name"
+                        name="cardName"
+                        required
+                    >
+                </div>
+                
+                <div class="form-group">
+                    <label>Card Details</label>
+                    <div id="card-element"></div>
+                    <div id="card-errors" role="alert"></div>
+                </div>
+                
+                <button type="submit" id="place-order">
+                    Place Order
+                </button>
+
+            </form>
+
+        </div>
+
+
+        <div class="checkout-summary">
+
+            <h2>Order Summary</h2>
+
+            <div id="checkout-items">
+                <!-- Basket items will be inserted here -->
+            </div>
+
+            <div class="summary-line">
+                <span>Items</span>
+                <span id="checkout-count">0</span>
+            </div>
+
+            <div class="summary-line">
+                <span>Subtotal</span>
+                <span>£<span id="checkout-subtotal">0.00</span></span>
+            </div>
+
+            <div class="form-group">
+                <label for="delivery">Delivery</label>
+            
+                <select id="delivery" name="delivery">
+                    <option value="standard">Standard Delivery - £3.99</option>
+                    <option value="express">Express Delivery - £7.99</option>
+                </select>
+            </div>
+
+            <hr>
+
+            <div class="summary-total">
+                <strong>Total</strong>
+                <strong>£<span id="checkout-total">0.00</span></strong>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+<script>
+    const stripe = Stripe("pk_test_51UPBVFRAVDuI7HFLRjFJEy9gfMZCfNeuleWR3DD8d10WDSoA7rwPbr4YoutV3tsBJ6YQBc6Rj3Pr6wVNJj5f5pth00lkGGQLfH");
+
+    const elements = stripe.elements();
+
+ 
+    const card = elements.create("card", {
+    hidePostalCode: true
+});
+    card.mount("#card-element");
+</script>
+<script>
+let basketInfo = [];
+
+fetch("/getBasket")
+    .then(res => {
+        return res.json();
+    })
+    .then(basket => {
+
+        const checkoutTotal = document.querySelector("#checkout-subtotal");
+        const checkoutCount = document.querySelector("#checkout-count");
+        const checkoutSummaryTotal = document.querySelector("#checkout-total");
+        const deliveryElement = document.querySelector("#delivery");
+
+        let itemCount = 0;
+        let total = 0;
+        let delivery=0;
+
+
+        if(deliveryElement.value==="standard") delivery=3.99;
+
+        basket.forEach(item => {
+
+            console.log(item.name)
+            const itemName= item.name
+            const itemQuantity=item.quantity
+            const itemPrice= item.price
+
+    basketInfo.push({ 
+    itemName:itemName,
+    itemQuantity:itemQuantity,
+    itemPrice:itemPrice
+})
+
+            const subtotal = item.price * item.quantity;
+
+            itemCount += item.quantity;
+            total += subtotal;
+
+           
+            checkoutCount.textContent = itemCount;
+            checkoutTotal.textContent = total.toFixed(2);
+            checkoutSummaryTotal.textContent= (total + delivery).toFixed(2);
+
+
+            deliveryElement.addEventListener("change", () => {
+
+if (deliveryElement.value === "standard") {
+    delivery = 3.99;
+}
+
+if (deliveryElement.value === "express") {
+    delivery = 7.99;
+}
+
+checkoutSummaryTotal.textContent = (total + delivery).toFixed(2);
+
+});
+})
+}).catch(error => {
+
+        document.querySelector("#basket-items").innerHTML = `
+            <p>Your basket is empty.</p>
+        `;
+
+        console.log(error);
+
+    });
+
+
+ const form=document.querySelector("#checkout-form");
+ const firstName=document.querySelector("#first-name");
+ const lastName=document.querySelector("#last-name");
+ const email=document.querySelector("#email");
+ const address=document.querySelector("#address");
+ const city=document.querySelector("#city");
+ const postcode=document.querySelector("#postcode");
+ const card_name=document.querySelector("#card-name");
+
+
+
+form.addEventListener('submit',(e)=>{
+e.preventDefault();
+
+if (firstName.value.trim()=== "") {
+       const container=firstName.closest(".form-group");
+       const p=document.createElement("p");
+       p.innerText="please fill out firstname";
+       const checkP=container.querySelector('p');
+       if(checkP) return;
+       container.insertAdjacentElement("beforeend",p);
+       return;
+    }
+else {
+    const container=firstName.closest(".form-group");
+    const p=container.querySelector('p');
+    if(p) p.remove();
+    
+}
+    if (lastName.value.trim()=== "") {
+       const container=lastName.closest(".form-group");
+       const p=document.createElement("p");
+       p.innerText="please fill out lastname";
+       const checkP=container.querySelector('p');
+       if(checkP) return;
+       container.insertAdjacentElement("beforeend",p);
+       return;
+    }
+
+    else {
+    const container=lastName.closest(".form-group");
+    const p=container.querySelector('p');
+    if(p) p.remove();
+         }
+
+    if (email.value.trim()=== "") {
+       const container=email.closest(".form-group");
+       const p=document.createElement("p");
+       p.innerText="please fill out email";
+       const checkP=container.querySelector('p');
+       if(checkP) return;
+       container.insertAdjacentElement("beforeend",p);
+       return;
+    }
+
+    else {
+    const container=email.closest(".form-group");
+    const p=container.querySelector('p');
+    if(p) p.remove();  
+}
+
+    if (address.value.trim()=== "") {
+       const container=address.closest(".form-group");
+       const p=document.createElement("p");
+       p.innerText="please fill out address";
+       const checkP=container.querySelector('p');
+       if(checkP) return;
+       container.insertAdjacentElement("beforeend",p);
+       return;
+    }
+
+    else {
+    const container=address.closest(".form-group");
+    const p=container.querySelector('p');
+    if(p) p.remove();  
+}
+
+    if (city.value.trim()=== "") {
+       const container=city.closest(".form-group");
+       const p=document.createElement("p");
+       p.innerText="please fill out city feild";
+       const checkP=container.querySelector('p');
+       if(checkP) return;
+       container.insertAdjacentElement("beforeend",p);
+       return;
+    }
+    else {
+    const container=city.closest(".form-group");
+    const p=container.querySelector('p');
+    if(p) p.remove();  
+}
+
+    if (postcode.value.trim()=== "") {
+       const container=postcode.closest(".form-group");
+       const p=document.createElement("p");
+       p.innerText="please fill out postcode";
+       const checkP=container.querySelector('p');
+       if(checkP) return;
+       container.insertAdjacentElement("beforeend",p);
+       return;
+    }
+    else {
+    const container=postcode.closest(".form-group");
+    const p=container.querySelector('p');
+    if(p) p.remove();  
+}
+
+    const   Postcode= postcode.value.replace(" ","");
+       
+    if (Postcode.length !=6) {
+       const container=postcode.closest(".form-group");
+       const p=document.createElement("p");
+       p.innerText="please fill out postcode in correct format";
+       const checkP=container.querySelector('p');
+       if(checkP) return;
+       container.insertAdjacentElement("beforeend",p);
+       return;
+    }
+
+    else {
+    const container=postcode.closest(".form-group");
+    const p=container.querySelector('p');
+    if(p) p.remove();  
+}
+
+    if (city.value.trim()=== "") {
+       const container=city.closest(".form-group");
+       const p=document.createElement("p");
+       p.innerText="please fill out city feild";
+       const checkP=container.querySelector('p');
+       if(checkP) return;
+       container.insertAdjacentElement("beforeend",p);
+       return;
+    }
+
+    else {
+    const container=city.closest(".form-group");
+    const p=container.querySelector('p');
+    if(p) p.remove();  
+}
+
+    if (card_name.value.trim()=== "") {
+       const container=card_name.closest(".form-group");
+       const p=document.createElement("p");
+       p.innerText="please fill out the name on the card correctly";
+       container.insertAdjacentElement("beforeend",p);
+       return;
+    }
+     
+
+   const formData= new FormData(form); 
+
+   const data = Object.fromEntries(formData);
+  
+   const finalData= {
+    ...data,
+    delivery: document.querySelector("#delivery").value,
+    basket:basketInfo, 
+   }
+
+
+   
+
+   fetch("/checkoutSend", {
+    method: "POST",
+    headers: {
+        "Content-Type": "application/json"
+    },
+    body: JSON.stringify(finalData)
+})
+.then(async res => {
+    const data = await res.json();
+
+    if (!res.ok) {
+        throw new Error(data.error);
+    }
+
+    // Confirm the payment using the card on your page
+    const result = await stripe.confirmCardPayment(
+        data.clientSecret,
+        {
+            payment_method: {
+                card: card,
+                billing_details: {
+                    name: card_name.value.trim(),
+                    email: email.value.trim(),
+                    address: {
+                        line1: address.value.trim(),
+                        city: city.value.trim(),
+                        postal_code: postcode.value.trim()
+                    }
+                }
+            }
+        }
+    );
+
+    const cardErrors = document.querySelector("#card-errors");
+
+    if (result.error) {
+        cardErrors.textContent = result.error.message;
+        return;
+    }
+
+    if (result.paymentIntent.status === "succeeded") {
+        cardErrors.textContent = "Payment successful!";
+        cardErrors.style.color = "green";
+        form.reset();
+        card.clear();
+
+        const checkoutTotal = document.querySelector("#checkout-subtotal");
+        const checkoutCount = document.querySelector("#checkout-count");
+        const checkoutSummaryTotal = document.querySelector("#checkout-total");
+
+        checkoutTotal.innerText="£0.00";
+        checkoutCount.innerText=0;
+        checkoutSummaryTotal.innerText="0.00";
+        //document.querySelector("#place-order").disabled = true;
+    } else {
+        cardErrors.textContent = "Payment has not completed.";
+        cardErrors.style.color = "red";
+    }
+})
+.catch(error => {
+    console.log("Payment error:", error);
+
+    document.querySelector("#card-errors").textContent =
+        error.message || "Unable to process payment. Please try again.";
+});})
+</script>

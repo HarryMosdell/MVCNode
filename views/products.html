@@ -1,0 +1,53 @@
+<div class="products-page">
+
+    <h1>Products</h1>
+
+    <div class="products"> </div>
+
+</div>
+
+
+<script>
+fetch("http://localhost:3083/getProducts")
+.then(res=> res.json())
+.then((products)=> {
+
+  products.forEach(product => {
+  const string= ` <div class="product">
+        <h2>${product.name}</h2>
+        <p>${product.price}</p>
+        <a style="color:white;" href="/products/${product.id}">View Product</a>
+        <a class="addButton" style="color:white;"  data-id="${product.id}" data-name="${product.name}" data-price="${product.price}">Add Product To Basket</a>
+    </div> `
+const productContainer=document.querySelector(".products")
+productContainer.insertAdjacentHTML("beforeend", string);
+});
+
+const addButtons= document.querySelectorAll(".addButton");
+
+addButtons.forEach((addButton)=>{
+    addButton.addEventListener('click', (e)=>{
+        AddBasket(e)
+    })
+});
+
+})
+
+function AddBasket(e) {
+const id= e.target.dataset.id;
+const name = e.target.dataset.name;
+const price = e.target.dataset.price;
+
+fetch(`http://localhost:3083/addBasket?id=${id}`, {
+method: "POST",
+
+headers: {"Content-Type": "application/json"},
+
+body: JSON.stringify({id:id, name: name , price:price } )
+
+}).then((res)=> res.json()).then((data)=> alert(data))
+
+}
+
+
+</script>

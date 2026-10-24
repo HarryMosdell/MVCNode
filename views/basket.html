@@ -1,0 +1,244 @@
+<div class="basket-page">
+
+    <h1>Your Basket</h1>
+
+    <div id="basket-items"></div>
+
+    <div class="basket-summary">
+
+        <h2>Basket Summary</h2>
+
+        <p>
+            Items: <span id="basket-count">0</span>
+        </p>
+
+        <p>
+            Total: £<span id="basket-total">0.00</span>
+        </p>
+
+        <button id="checkout-button">
+           <a style="display: block;color:white; text-decoration: none;" href="http://localhost:3083/checkout"> Checkout </a>
+        </button>
+
+    </div>
+
+</div>
+
+<script>
+
+fetch("/getBasket")
+    .then(res => {
+        if (!res.ok) {
+            throw new Error("Basket is empty");
+        }
+
+        return res.json();
+    })
+    .then(basket => {
+
+        const basketContainer = document.querySelector("#basket-items");
+        const basketCount = document.querySelector("#basket-count");
+        const basketTotal = document.querySelector("#basket-total");
+
+        let itemCount = 0;
+        let total = 0;
+
+        basket.forEach(item => {
+
+            const subtotal = item.price * item.quantity;
+
+            itemCount += item.quantity;
+            total += subtotal;
+
+            const basketItem = `
+                <div class="basket-item">
+
+                    <h2>${item.name}</h2>
+
+                    <p class="price" data-id="${item.product_id}">
+                        Price: £ <span class="priceSpan" data-id="${item.product_id}">${item.price.toFixed(2)}</span>
+                    </p>
+
+                    <div class="quantity-controls">
+
+<button 
+    class="quantity-button decrease-button"
+    data-id="${item.product_id}">
+    -
+</button>
+
+<span class="quantity" data-id="${item.product_id}">
+    ${item.quantity}
+</span>
+
+<button 
+    class="quantity-button increase-button"
+    data-id="${item.product_id}">
+    +
+</button>
+
+</div>
+                        
+                    
+
+                    <p class="subTotal" data-id="${item.product_id}">
+                        Subtotal: £${subtotal.toFixed(2)}
+                    </p>
+
+                    <button 
+                        class="remove-button"
+                        data-id="${item.product_id}">
+                        Remove
+                    </button>
+                       <p  data-id="${item.product_id}" class="remove_message"> 
+                        </p>
+                </div>
+            `;
+
+            basketContainer.insertAdjacentHTML(
+                "beforeend",
+                basketItem
+            );
+        });
+
+        basketCount.textContent = itemCount;
+        basketTotal.textContent = total.toFixed(2);
+
+
+        const remove_buttons=document.querySelectorAll('.remove-button')
+
+        remove_buttons.forEach((remove_button)=>{
+
+        remove_button.addEventListener('click',(e)=>{
+        removeBasket(e.target.dataset.id);
+         })
+
+})
+
+
+const updateButtons = document.querySelectorAll(".quantity-button");
+
+updateButtons.forEach((updateButton) => {
+
+    updateButton.addEventListener("click", (e) => {
+
+        if (e.target.classList.contains("increase-button")) {
+
+            const ob = {
+                productId: e.target.dataset.id,
+                action: "increase"
+            };
+            updateBasket(ob);
+        }
+
+        if (e.target.classList.contains("decrease-button")) {
+
+            const ob = {
+                productId: e.target.dataset.id,
+                action: "decrease"
+            };
+            updateBasket(ob);
+        }
+
+    });
+
+});
+
+
+})
+
+    .catch(error => {
+
+        document.querySelector("#basket-items").innerHTML = `
+            <p>Your basket is empty.</p>
+        `;
+
+        console.log(error);
+
+    });
+
+
+function removeBasket(id) {
+fetch( `http://localhost:3083/removeBasket?id=${id} `,{
+    method:"POST", 
+
+    headers: {'Content-Type' : 'application/json'},
+
+    body: JSON.stringify({productId:id})
+}).then(async(res) => {
+       if(!res.ok) {
+       const p= document.createElement("p");
+       p.innerText="sorry item not in the basket";
+       return;
+       }
+       const message =await res.json();
+       const removeMessage= document.querySelector(`p[data-id="${id}"]`)
+       removeMessage.textContent = message;
+       location.reload();
+    });
+}
+
+function updateBasket(ob){
+
+    fetch("http://localhost:3083/updateBasket", {
+      method: "POST", 
+      
+      headers: {"Content-Type": "application/json"},
+
+      body: JSON.stringify(ob)
+
+    }).then(res=>    
+        data=res.json()
+    ).then((data)=> {console.log(data)
+      
+        const priceElement = document.querySelector(
+            `.priceSpan[data-id="${ob.productId}"]`
+        );
+
+        const subTotalElement = document.querySelector(
+            `.subTotal[data-id="${ob.productId}"]`
+        );
+
+
+        const quantityElement = document.querySelector(
+            `.quantity[data-id="${ob.productId}"]`
+        );
+        const basketTotalElement = document.querySelector("#basket-total");
+
+        const itemsTotalElement = document.querySelector("#basket-count");
+
+        let quantity = Number(quantityElement.textContent);
+        let price = Number(priceElement.textContent);
+
+        if (ob.action === "increase") {
+            quantity++;
+            newBasketTotal= Number(basketTotalElement.textContent) + price;
+            newItemTotal = Number(itemsTotalElement.textContent) +1 
+
+        }
+
+        if (ob.action === "decrease") {
+            quantity--;
+            if (quantity <1) {
+                quantity=1;
+                return;
+            } 
+         newBasketTotal= Number(basketTotalElement.textContent) - price;
+         newItemTotal = Number(itemsTotalElement.textContent) -1 
+        }
+
+     let subTotal=Number(subTotalElement.textContent);
+
+     subTotal= price* quantity;
+
+        quantityElement.textContent = quantity;
+        
+        subTotalElement.textContent=   `Subtotal: £${Number(subTotal).toFixed(2)}`;
+
+        basketTotalElement.textContent=  Number(newBasketTotal).toFixed(2);
+
+        itemsTotalElement.textContent= newItemTotal;
+    })
+}
+
+</script>

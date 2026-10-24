@@ -1,17 +1,20 @@
-<a href="usersList"> req </a>
-<form>
-    <input type="text" class="name"  placeholder="name">
-    <input type="text" class="age" placeholder="age">
-    <input type="submit" >
-   </form>
-   <p class="message"> </p>
- 
+<div class="login-page">
+
+    <form class="login-form">
+        <input type="text" class="name" placeholder="username">
+        <input type="text" class="password" placeholder="password">
+        <input type="submit">
+    </form>
+
+    <p class="message"></p>
+
+</div>
 <script>
   
 const form= document.querySelector("form");
 
    const firstName= document.querySelector(".name");
-   const age= document.querySelector(".age");
+   const password= document.querySelector(".password");
    const message= document.querySelector(".message");
 
    form.addEventListener("input", (e)=> {
@@ -24,7 +27,7 @@ const form= document.querySelector("form");
     
     body: JSON.stringify({
     name: firstName.value,
-    age: Number(age.value)
+    password: password.value
     }) 
     }).then(async (res) => {
         const data = await res.json();

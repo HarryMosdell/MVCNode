@@ -1,7 +1,7 @@
 import http from "node:http";
 import fs from "node:fs";
 import { dbConnect, client } from "./database/dbConnection.js";
-import { home, users, loginHtml, login, userGet, authUser,tryRefresh} from "./controllers/controller.js";
+import { home, users, loginHtml, login, userGet, authUser,tryRefresh, orders, productsHtml, getProducts, addToBasket, basketHtml, renderBasket, removeBasket, updateBasket, checkoutHtml, checkout ,createOrder,ViewOrders, stripWebhook} from "./controllers/controller.js";
 import { url } from "node:inspector";
 import bcrypt from "bcrypt";
 
@@ -9,7 +9,19 @@ const routes= {
     "/home": home,
     "/users": users,
     "/login": loginHtml,
-    "/loginAsk": login
+    "/loginAsk": login, 
+    "/orders": orders, 
+    "/products": productsHtml,
+    "/getProducts": getProducts, 
+    "/addBasket": addToBasket, 
+    "/basket": basketHtml,
+    "/getBasket":renderBasket,
+    "/removeBasket":removeBasket, 
+    "/updateBasket":updateBasket, 
+    "/checkout":checkoutHtml,
+    "/checkoutSend":checkout,
+    "/createOrder":createOrder,
+    "/orders":ViewOrders
 }
 
 dbConnect();
@@ -20,8 +32,9 @@ const server=http.createServer((req,res)=>{
    
     const urlObj = new URL(req.url, `http://${req.headers.host}`);
     const path= urlObj.pathname;
-    const searchParams= urlObj.searchParams || "";
-   
+    const searchParams= urlObj.searchParams;
+    req.path=path;
+
     if (req.url.startsWith("/css/")) {
         const cssPath = "public" + req.url;
         const css = fs.readFileSync(cssPath, "utf8");
@@ -29,15 +42,19 @@ const server=http.createServer((req,res)=>{
         res.end(css);
         return;
     }
-    
-const route= routes[path];
 
+    if (req.url === "/stripe-webhook" && req.method === "POST") {
+        stripWebhook(req, res);
+        return;
+    }
+
+const route= routes[path];
 
 if(route) {
     route(req,res,skeleton,searchParams);
 }
 else {
-    res.statusCode=401;
+    res.statusCode=404;
     res.end("not found")
 }
 
