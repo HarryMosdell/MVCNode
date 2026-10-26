@@ -602,16 +602,29 @@ export async function checkout(req, res) {
                 guestTokenDecoded=null;
             }
 
-            if(refreshTokenDecoded) {
-            const user_id=refreshTokenDecoded.id
+            let info = null;
+
+            if(refreshTokenDecoded){
+            
+            info= {id: refreshTokenDecoded.id, column:"user_id" };
+            }
+
+            else if(guestTokenDecoded) {
+            info= {id: guestTokenDecoded.id, column:"guest_id" };
+            }
+
+            if(!info) {
+                res.writeHead(401);
+                return res.end("Invalid or missing token");
+            }
 
             const result = await client.query(
                 `SELECT products.name, products.price, basket.quantity
                  FROM basket
                  INNER JOIN products
                  ON products.id = basket.product_id
-                 WHERE basket.user_id = $1`,
-                [user_id]
+                 WHERE basket.${info.column} = $1`,
+                [info.id]
             );
             
             if(result.rows.length<1){
@@ -658,7 +671,7 @@ export async function checkout(req, res) {
                 },
                 receipt_email: data.email,
                 metadata: {
-                    user_id: String(user_id),
+                    [info.column]: String(info.id),
                     expectedAmount: String(amount)
                 }
             })
@@ -672,83 +685,7 @@ export async function checkout(req, res) {
                 clientSecret: paymentIntent.client_secret
             }));
 
-        } 
-        //guest checkout
-    else if(guestTokenDecoded) {
-        const guest_id=guestTokenDecoded.id
-
-        const result = await client.query(
-            `SELECT products.name, products.price, basket.quantity
-             FROM basket
-             INNER JOIN products
-             ON products.id = basket.product_id
-             WHERE basket.guest_id = $1`,
-            [guest_id]
-        );
-        
-        if(result.rows.length<1){
-            res.writeHead(400, {
-                "Content-Type": "application/json"
-            });
-        
-            return res.end(JSON.stringify({
-                error: "Your basket is empty."
-            }));
-        
-        }
-         
-        // Calculate the basket subtotal in pence
-        const subtotal = result.rows.reduce((total, item) => {
-        const price = Number(item.price);
-        const quantity = Number(item.quantity);
-
-            if (
-                !Number.isFinite(price) ||
-                price < 0 ||
-                !Number.isSafeInteger(quantity) ||
-                quantity < 1
-            ) {
-                throw new Error("Invalid basket item.");
-            }
-
-            return total + Math.round(price * 100) * quantity;
-        }, 0);
-   
-        const amount = subtotal + deliveryCosts[data.delivery];
-
-        if (!Number.isSafeInteger(amount) || amount <= 0) {
-            throw new Error("Invalid payment amount.");
-        }
-
-      
-        // Create a PaymentIntent instead of a Checkout Session
-        const paymentIntent = await stripe.paymentIntents.create({
-            amount:amount,
-            currency: "gbp",
-            automatic_payment_methods: {
-                enabled: true
-            },
-            metadata: {
-                guest_id: String(guest_id),
-                expectedAmount: String(amount)
-            }
-        })
-
-        res.writeHead(200, {
-            "Content-Type": "application/json"
-        });
-
-        res.end(JSON.stringify({
-            clientSecret: paymentIntent.client_secret
-        }));
-        
-    }
-    
-    else {
-         res.statusCode=401;
-         res.end("Neither guest or user is logged in")
-    }
-    }catch (error) {
+        }catch (error) {
             console.error("Checkout error:", error);
 
             res.writeHead(500, {
