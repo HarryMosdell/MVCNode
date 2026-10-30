@@ -5,6 +5,8 @@ import Stripe from "stripe";
 import { randomUUID } from "node:crypto";
 import {getCookie} from "../functions/getcookie.js";
 import bcrypt from "bcrypt";
+import { json } from "express";
+import { join } from "node:path";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -353,13 +355,26 @@ export function updateBasket(req,res, skeleton, params) {
    })
  }
 
-export function users(req,res, skeleton, params){
+export async function users(req,res, skeleton, params){
     if (params && [...params].length > 0) {
          userGet(req, res, skeleton, params);
          return;
 
     }
-    res.end("users route hit!");
+
+  const users= await client.query('select * from users');
+
+  if(users.rows.length<1) return res.end("no users in the system");
+
+  res.end(JSON.stringify(users.rows));
+  
+}
+
+export function usersHtml(req,res,skeleton,params) {
+ 
+const usersHtml=fs.readFileSync("./views/users.html", "utf8");
+const finalPage= skeleton.replace('__info__', usersHtml);
+res.end(finalPage);
 }
 
 export function loginHtml(req,res, skeleton, params){
@@ -369,8 +384,7 @@ export function loginHtml(req,res, skeleton, params){
 }
 
 export function orders(req,res, skeleton, params){
-
-    const view= "orders.html";
+    const view= "/orders.html";
     authUser(req, res, skeleton,view);
 }
 
@@ -411,10 +425,22 @@ export async function login(req,res, skeleton, params){
   
          if(username===resultUsername) {
         res.setHeader("Content-Type", "application/json");
+        
+        const addSession= await client.query('insert into user_sessions (user_id) VALUES($1) RETURNING session_id', 
+        [resultId]);
+
+        if(addSession.rowCount<1){
+            return res.end(JSON.stringify({
+                error: "No session is able to be started"
+            }));
+        } 
          
+        const session_id= addSession.rows[0].session_id;
+
         const token= jwt.sign(
          {username:resultUsername, 
-          id:resultId
+          id:resultId,
+          session_id:session_id
         },
         process.env.TOKEN_SECERT_KEY,
          {expiresIn: "10s"}
@@ -422,13 +448,22 @@ export async function login(req,res, skeleton, params){
         
         const refreshToken= jwt.sign(
           {username:resultUsername,
-            id:resultId
+            id:resultId,
+            session_id:session_id
         },
         process.env.JWT_REFRESH_SECRET,
           {expiresIn: "7d"}
          )
+         
+        const UpdateSignIn = await client.query('update users set is_loggedin=TRUE, last_signin=NOW() where id=$1',
+        [resultId]);
 
-  const guestToken =  getCookie(req,"guestToken");
+        if(UpdateSignIn.rowCount<1) {
+         return res.end(JSON.stringify({
+            error: "User not found, so login details could not be updated"
+        }));
+    }
+        const guestToken =  getCookie(req,"guestToken");
 
          try{
          const guest=  jwt.verify(guestToken,process.env.JWT_GUEST_SECRET_KEY);
@@ -477,11 +512,10 @@ authUser(req, res, skeleton,view);
 }
 
 
-export function authUser(req, res, skeleton, view) {
+export async function authUser(req, res, skeleton, view) {
   
   const token =  getCookie(req,"token");
 
-  
   const refreshToken = getCookie(req,"refreshToken");
 
   if(!token) {
@@ -491,6 +525,10 @@ export function authUser(req, res, skeleton, view) {
   try {
   const decoded = jwt.verify(token,process.env.TOKEN_SECERT_KEY);
   req.name=decoded.username; 
+  const sessionCheck= await client.query("select * from user_sessions where session_id=$1 AND user_id=$2 AND time_revoked IS NULL",[decoded.session_id,decoded.id])
+  if(sessionCheck.rowCount===0){
+    throw new Error("Session has been revoked");
+  }
   const viewHtml=fs.readFileSync(`./views/${view}`, "utf8");
   const viewHtmlFinal=viewHtml.replaceAll("--name",decoded.username );
   const finalHtml = skeleton.replace("__info__",viewHtmlFinal);
@@ -501,33 +539,38 @@ export function authUser(req, res, skeleton, view) {
   catch(err) {
     console.log(err)
     res.statusCode=401;
-    return tryRefresh(req,res,refreshToken, skeleton, view);
-
+    return tryRefresh(req, res, refreshToken, skeleton, view);
   }
-
 }
 
 
-export function tryRefresh(req,res,refreshToken, skeleton,view) {
+export async function tryRefresh(req,res,refreshToken, skeleton,view) {
 
-    if(!refreshToken) return res.end("no Refresh token you need to login again!");
-    
+    if(!refreshToken) {
+        return res.end("no Refresh token you need to login again!")
+    }   
+
    try{
    const refreshTokenDecoded=jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
 
    const accessToken= jwt.sign(
     {username: refreshTokenDecoded.username,
-    id: refreshTokenDecoded.id
+    id: refreshTokenDecoded.id,
+    session_id: refreshTokenDecoded.session_id
     },
     process.env.TOKEN_SECERT_KEY,
     { expiresIn:"10s" }
    );
 
+  const sessionCheck= await client.query("select * from user_sessions where session_id=$1 AND user_id=$2 AND time_revoked IS NULL",[refreshTokenDecoded.session_id,refreshTokenDecoded.id])
+  if(sessionCheck.rowCount===0){
+    throw new Error("Session has been revoked");
+  }
+
    res.setHeader("Set-Cookie", [
     `token=${accessToken}; HttpOnly;  Max-Age=10; SameSite=Lax`
   ]);
   
- 
   const viewHtml=fs.readFileSync(`./views/${view}`, "utf8");
   const viewHtmlFinal=viewHtml.replaceAll("--name", refreshTokenDecoded.username);
   const finalHtml = skeleton.replace("__info__",viewHtmlFinal);
@@ -591,7 +634,7 @@ export async function checkout(req, res) {
             try {
                 refreshTokenDecoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
             } catch {
-               
+                
                 refreshTokenDecoded=null;
             }
 
@@ -794,6 +837,93 @@ export async function clearBasket(info){
     }
 }
 
-export function ViewOrders(req,res){
+export async function ViewOrders(req,res){
+    const refreshToken = getCookie(req,"refreshToken");
 
+    const refreshTokenDecoded= jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET)
+
+    const user_id=refreshTokenDecoded.id;
+    
+   const result= await client.query('select users.username, orders.order_amount, orders.created_at from users inner join orders on users.id= orders.user_id  WHERE users.id = $1',[user_id])
+   
+   res.setHeader("Content-Type", "application/json");
+
+   if(result.rows.length<1) {
+    res.statusCode=400;
+    return res.end({message:"no orders"}); 
+   } 
+
+   res.end(JSON.stringify(result.rows))
+}
+
+export async function logOut(req,res) {
+
+const reFreshToken=getCookie(req,"refreshToken");
+const token=getCookie(req,"token");
+
+
+let refreshTokenDecoded;
+try {
+    refreshTokenDecoded=jwt.verify(reFreshToken,process.env.JWT_REFRESH_SECRET);
+}
+catch {
+    refreshTokenDecoded=null;
+}
+
+if(!refreshTokenDecoded) {
+    res.statusCode = 401;
+    return res.end(JSON.stringify({message:"Invalid refresh token so cannot log out"}));
+}
+
+try {
+  
+const user_session_end= await client.query( "UPDATE user_sessions set time_revoked=NOW() where session_id=$1 AND user_id = $2",
+[refreshTokenDecoded.session_id, refreshTokenDecoded.id]);
+
+if(user_session_end.rowCount<1) {
+    return;
+}
+
+await client.query(
+    `UPDATE users
+     SET is_loggedin = EXISTS (
+         SELECT *
+         FROM user_sessions
+         WHERE user_id = $1
+         AND time_revoked IS NULL
+     )
+     WHERE id = $1`,
+    [refreshTokenDecoded.id]
+);
+
+res.setHeader("Set-Cookie", [
+    "token=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax",
+    "refreshToken=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax"
+])
+
+res.end(JSON.stringify({message:"logged out succesfully"}))
+}
+
+catch(err) {
+    console.error(err);
+    res.statusCode = 500;
+    return res.end(JSON.stringify({message:"not logged out "}));
+}
+
+}
+
+function loginAdmin() {
+
+}
+
+export function viewSessions(req,res,skeleton,params){
+ const sessionsHtml=fs.readFileSync("./views/userSession.html");
+ const finalHtml= skeleton.replace("__info__",sessionsHtml);
+ res.end(finalHtml)
+}
+
+export function adminDashboardHtml(req,res,skeleton,params){
+ const adminHtml=fs.readFileSync("./views/adminDashboard.html");
+ const finalHtml=skeleton.replace("__info__",adminHtml)
+ res.end(finalHtml);
 }

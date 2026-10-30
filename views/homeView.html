@@ -17,9 +17,25 @@
                 <a href="/products">View Products</a>
                 <a href="/orders">View Orders</a>
             </div>
+
+
+            <button style="height:40px; width:100px; background-color: aqua;"> log Out</button>
         </section>
 
     </main>
+<script>
+const button=document.querySelector("button");
 
-
-```
+button.addEventListener("click", ()=>{
+    fetch("http://localhost:3083/logOut" , {
+        method:"POST",
+        headers: {
+            "Content-Type": "application/json"
+        }, 
+        body: JSON.stringify({ action: "logout" })
+        
+    }).then(res=> res.json())
+    .then(data=> alert(data.message))
+}
+)
+</script>

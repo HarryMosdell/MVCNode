@@ -1,0 +1,252 @@
+
+<main class="admin-container">
+
+    <header class="admin-header">
+        <div>
+            <span class="admin-label">ADMIN PANEL</span>
+            <h1>Dashboard</h1>
+            <p>Welcome back. Here's an overview of your store.</p>
+        </div>
+    
+        <a href="/" class="back-link">
+            <i class="fa-solid fa-arrow-left"></i>
+            Back to Store
+        </a>
+    </header>
+
+    <section class="admin-stats">
+
+        <div class="stat-card">
+            <span>Total Orders</span>
+            <h2>125</h2>
+        </div>
+
+        <div class="stat-card">
+            <span>Total Customers</span>
+            <h2>84</h2>
+        </div>
+
+        <div class="stat-card">
+            <span>Total Revenue</span>
+            <h2>£2,450</h2>
+        </div>
+
+        <div class="stat-card">
+            <span>Users Online</span>
+            <h2>3</h2>
+        </div>
+
+    </section>
+
+    <section class="admin-section">
+        <h2>Shop Management</h2>
+
+        <div class="admin-links">
+            <a href="/admin/orders">
+                <span>Manage Orders</span>
+                <span class="arrow">→</span>
+            </a>
+
+            <a href="/admin/products">
+                <span>Manage Products</span>
+                <span class="arrow">→</span>
+            </a>
+
+            <a href="/admin/customers">
+                <span>Manage Customers</span>
+                <span class="arrow">→</span>
+            </a>
+
+            <a href="/admin/users">
+                <span>Manage Users</span>
+                <span class="arrow">→</span>
+            </a>
+
+            <a href="/viewUserSessions">
+                <span>View User Activity</span>
+                <span class="arrow">→</span>
+            </a>
+
+            <a href="/users">
+                <span>View all users</span>
+                <span class="arrow">→</span>
+            </a>
+        </div>
+    </section>
+
+</main>
+<style>
+/* Admin Dashboard */
+
+.admin-container {
+    width: min(1150px, 92%);
+    margin: 65px auto;
+}
+
+/* Header */
+
+.admin-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 40px;
+}
+
+.admin-label {
+    display: block;
+    color: #1ea19a;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    margin-bottom: 10px;
+}
+
+.admin-header h1 {
+    color: #f0f3f6;
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: -1px;
+    margin-bottom: 8px;
+}
+
+.admin-header p {
+    color: #89939f;
+    font-size: 14px;
+}
+
+/* Back to Store */
+
+.back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    padding: 11px 16px;
+    color: #c9d1d9;
+    background: #161d26;
+    border: 1px solid #303b48;
+    border-radius: 8px;
+    text-decoration: none;
+    font-size: 13px;
+    transition: 0.2s ease;
+}
+
+.back-link:hover {
+    color: #1ea19a;
+    border-color: #1ea19a;
+    background: #19242c;
+}
+
+/* Statistics */
+
+.admin-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 18px;
+    margin-bottom: 45px;
+}
+
+.stat-card {
+    background: linear-gradient(145deg, #161d26, #111820);
+    border: 1px solid #26313d;
+    border-radius: 12px;
+    padding: 25px;
+    transition: 0.2s ease;
+}
+
+.stat-card:hover {
+    border-color: #1ea19a;
+    transform: translateY(-3px);
+}
+
+.stat-card span {
+    color: #89939f;
+    font-size: 13px;
+}
+
+.stat-card h2 {
+    color: #f0f3f6;
+    margin-top: 14px;
+    font-size: 28px;
+    font-weight: 600;
+}
+
+/* Management Section */
+
+.admin-section {
+    margin-top: 35px;
+}
+
+.admin-section h2 {
+    color: #f0f3f6;
+    font-size: 19px;
+    margin-bottom: 20px;
+}
+
+.admin-links {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+}
+
+.admin-links a {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 22px;
+    background: #141b23;
+    border: 1px solid #26313d;
+    border-radius: 10px;
+    color: #e6edf3;
+    text-decoration: none;
+    font-size: 14px;
+    transition: 0.2s ease;
+}
+
+.admin-links a:hover {
+    border-color: #1ea19a;
+    background: #19242c;
+    color: #1ea19a;
+}
+
+.arrow {
+    color: #1ea19a;
+    font-size: 20px;
+}
+
+/* Responsive */
+
+@media (max-width: 800px) {
+    .admin-stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .admin-container {
+        margin: 40px auto;
+    }
+}
+
+@media (max-width: 550px) {
+    .admin-header {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 18px;
+    }
+
+    .admin-header h1 {
+        font-size: 27px;
+    }
+
+    .admin-links {
+        grid-template-columns: 1fr;
+    }
+
+    .stat-card {
+        padding: 18px;
+    }
+
+    .stat-card h2 {
+        font-size: 23px;
+    }
+}
+
+</style>

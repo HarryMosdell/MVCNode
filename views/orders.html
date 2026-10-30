@@ -1,4 +1,331 @@
-<div>
 
-    orders page here! --name
-</div>
+<section class="orders-section">
+    <div class="orders-header">
+        <div>
+            <p class="orders-eyebrow">YOUR ACCOUNT</p>
+            <h1>My Orders</h1>
+            <p class="orders-subtitle">View your purchases and order history.</p>
+        </div>
+        <div class="orders-icon">📦</div>
+    </div>
+
+    <div class="orders-summary">
+        <div class="summary-card">
+            <span class="summary-label">Total orders</span>
+            <h2 id="totalOrders">0</h2>
+        </div>
+        <div class="summary-card">
+            <span class="summary-label">Total spent</span>
+            <h2 id="totalSpent">£0.00</h2>
+        </div>
+    </div>
+
+    <div class="orders-panel">
+        <div class="panel-header">
+            <div>
+                <h2>Order history</h2>
+                <p>Your recent purchases in one place.</p>
+            </div>
+        </div>
+
+        <div id="ordersContainer">
+            <div class="orders-loading">Loading your orders...</div>
+        </div>
+    </div>
+</section>
+
+<style>
+    .orders-section {
+        max-width: 1100px;
+        margin: 50px auto;
+        padding: 0 24px 50px;
+        color: #e6edf3;
+        font-family: Arial, sans-serif;
+    }
+
+    .orders-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 32px;
+    }
+
+    .orders-eyebrow {
+        color: #1ea19a;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 2px;
+    }
+
+    .orders-header h1 {
+        font-size: clamp(30px, 5vw, 42px);
+        margin: 8px 0;
+    }
+
+    .orders-subtitle,
+    .panel-header p {
+        color: #8b949e;
+        margin: 0;
+        line-height: 1.6;
+    }
+
+    .orders-icon {
+        display: grid;
+        place-items: center;
+        width: 64px;
+        height: 64px;
+        border: 1px solid #30363d;
+        background: #161b22;
+        border-radius: 18px;
+        font-size: 28px;
+    }
+
+    .orders-summary {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+        margin-bottom: 28px;
+    }
+
+    .summary-card,
+    .orders-panel {
+        background: #111820;
+        border: 1px solid #26313c;
+        border-radius: 16px;
+    }
+
+    .summary-card {
+        padding: 24px;
+    }
+
+    .summary-label {
+        color: #8b949e;
+        font-size: 14px;
+    }
+
+    .summary-card h2 {
+        font-size: 28px;
+        margin: 12px 0 0;
+        overflow-wrap: anywhere;
+    }
+
+    .orders-panel {
+        overflow: hidden;
+    }
+
+    .panel-header {
+        padding: 24px;
+        border-bottom: 1px solid #26313c;
+    }
+
+    .panel-header h2 {
+        font-size: 20px;
+        margin: 0 0 8px;
+    }
+
+    .orders-table-wrapper {
+        overflow-x: auto;
+    }
+
+    .orders-table {
+        width: 100%;
+        border-collapse: collapse;
+        text-align: left;
+    }
+
+    .orders-table th {
+        color: #8b949e;
+        background: #151c25;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .orders-table th,
+    .orders-table td {
+        padding: 20px 24px;
+        border-bottom: 1px solid #26313c;
+        white-space: nowrap;
+    }
+
+    .orders-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    .orders-table tbody tr:hover {
+        background: #18212b;
+    }
+
+    .order-number {
+        color: #1ea19a;
+        font-weight: 700;
+    }
+
+    .order-price {
+        font-weight: 700;
+    }
+
+    .order-status {
+        display: inline-block;
+        padding: 6px 10px;
+        border-radius: 20px;
+        background: #12352f;
+        color: #57d9b0;
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    .orders-loading,
+    .orders-empty,
+    .orders-error {
+        padding: 45px 24px;
+        text-align: center;
+        color: #8b949e;
+        line-height: 1.7;
+    }
+
+    .orders-empty h3 {
+        color: #e6edf3;
+        margin-bottom: 8px;
+    }
+
+    @media (max-width: 600px) {
+        .orders-section {
+            margin-top: 30px;
+            padding: 0 14px 35px;
+        }
+
+        .orders-summary {
+            gap: 12px;
+        }
+
+        .summary-card {
+            padding: 18px;
+        }
+
+        .summary-card h2 {
+            font-size: 23px;
+        }
+
+        .orders-icon {
+            width: 48px;
+            height: 48px;
+            font-size: 22px;
+        }
+
+        .orders-table th,
+        .orders-table td {
+            padding: 16px;
+        }
+    }
+</style>
+
+<script>
+    const ordersContainer = document.getElementById("ordersContainer");
+    const totalOrders = document.getElementById("totalOrders");
+    const totalSpent = document.getElementById("totalSpent");
+
+    fetch("/getOrders")
+        .then(res => {
+             data= res.json();
+
+            if (!res.ok) {
+                throw new Error(data.message);
+            }
+
+            return data;
+        })
+        .then(orders => {
+            
+            totalOrders.textContent = orders.length;
+
+            const spent = orders.reduce((sum, order) => {
+
+            return sum + Number(order.order_amount || 0)
+            },0
+            );
+
+            totalSpent.textContent = (spent / 100).toLocaleString("en-GB", {
+                style: "currency",
+                currency: "GBP"
+            });
+
+            if (orders.length === 0) {
+                ordersContainer.innerHTML = `
+                    <div class="orders-empty">
+                        <h3>No orders yet</h3>
+                        <p>Your purchases will appear here when you place an order.</p>
+                    </div>`;
+                return;
+            }
+
+            const table = document.createElement("table");
+            table.className = "orders-table";
+            table.innerHTML = `
+                <thead>
+                    <tr>
+                        <th>Order</th>
+                        <th>Customer</th>
+                        <th>Date</th>
+                        <th>Total</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>`;
+
+            const tbody = table.querySelector("tbody");
+
+            orders.forEach((order, index) => {
+                const tr = document.createElement("tr");
+
+                const values = [
+                    { text: `#${String(index + 1).padStart(4, "0")}`, className: "order-number" },
+                    { text: order.username || "Customer" },
+                    {
+                        text: order.created_at
+                            ? new Date(order.created_at).toLocaleDateString("en-GB", {
+                                day: "numeric",
+                                month: "short",
+                                year: "numeric"
+                            })
+                            : "—"
+                    },
+                    {
+                        text: (Number(order.order_amount) / 100).toLocaleString("en-GB", {
+                            style: "currency",
+                            currency: "GBP"
+                        }),
+                        className: "order-price"
+                    }
+                ];
+
+                values.forEach(value => {
+                    const td = document.createElement("td");
+                    td.textContent = value.text;
+                    if (value.className) td.className = value.className;
+                    tr.appendChild(td);
+                });
+
+                const statusCell = document.createElement("td");
+                const status = document.createElement("span");
+                status.className = "order-status";
+                status.textContent = "Paid";
+                statusCell.appendChild(status);
+                tr.appendChild(statusCell);
+
+                tbody.appendChild(tr);
+            });
+
+            const wrapper = document.createElement("div");
+            wrapper.className = "orders-table-wrapper";
+            wrapper.appendChild(table);
+            ordersContainer.replaceChildren(wrapper);
+        })
+        .catch(err => {
+            console.error(err.message);
+            ordersContainer.innerHTML = `
+                <div class="orders-error">
+                    Unable to load your orders. Please log in again and try refreshing the page.
+                </div>`;
+        });
+</script>
