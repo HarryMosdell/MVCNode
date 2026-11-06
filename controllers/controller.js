@@ -154,7 +154,7 @@ export async function renderBasket(req,res, skeleton, params) {
 //user basket rendering
       if(decoded){
        const  userId=decoded.id;
-       const  userName=decoded.userName;
+       const  userName=decoded.username;
        const result= await client.query("select basket.product_id, basket.quantity, products.name, products.price from basket inner join products on basket.product_id = products.id where user_id=$1",
          [userId])
 
@@ -410,11 +410,23 @@ export async function login(req,res, skeleton, params){
    
       let username=data.name
       let password=data.password
-            
+      let deviceType=data.deviceType
       const result= await client.query("SELECT * FROM USERS WHERE username=$1",
          [username]
         );
          
+        //insert into loginAttempts if username doesnt match
+        if(result.rows.length<1) {
+        await client.query("insert into loginAttempts (username,ip_address,successful, device_type) VALUES($1,$2,$3,$4)",
+        [username,req.socket.remoteAddress, false, deviceType ])
+        res.statusCode = 401;
+        res.setHeader("Content-Type", "application/json");
+    
+        return res.end(JSON.stringify({
+            error: "Invalid username"
+        }));
+        }
+       
        console.log(result.rows);
   
        if(result.rows.length>0 && await bcrypt.compare(password, result.rows[0].password)){ 
@@ -422,12 +434,31 @@ export async function login(req,res, skeleton, params){
          const resultUsername=result.rows[0].username;
          const resultPassword=result.rows[0].password;
          const resultId= result.rows[0].id;
-  
+         const is_locked= result.rows[0].is_locked;
+         const locked_until= result.rows[0].locked_until;
+
          if(username===resultUsername) {
         res.setHeader("Content-Type", "application/json");
         
-        const addSession= await client.query('insert into user_sessions (user_id) VALUES($1) RETURNING session_id', 
-        [resultId]);
+       if(is_locked && new Date(locked_until) >= new Date()){
+        res.statusCode = 423;
+        return res.end(JSON.stringify({message: "account is locked!"}));
+       }
+  
+       await client.query(
+        `UPDATE users
+         SET failed_login_attempts = 0,
+             locked_until = NULL, is_locked=FALSE
+         WHERE id = $1`,
+        [resultId]
+    );
+
+       const loginAttempt =await client.query("INSERT INTO loginAttempts (user_id, username, ip_address,successful,device_type) VALUES($1,$2,$3,$4,$5)",
+       [resultId, username, req.socket.remoteAddress, true, deviceType]
+   );
+
+        const addSession= await client.query('insert into user_sessions (user_id,device_type) VALUES($1,$2) RETURNING session_id', 
+        [resultId,deviceType]);
 
         if(addSession.rowCount<1){
             return res.end(JSON.stringify({
@@ -497,7 +528,30 @@ export async function login(req,res, skeleton, params){
        else {
           res.statusCode=401;
           res.setHeader("Content-Type", "application/json");
-          res.end(JSON.stringify({error:"invalid username or password!"}));
+
+          const result= await client.query('select * from users where username=$1',[username])
+
+        const userId=result.rows[0].id;
+          
+         const loginAttempt =await client.query("INSERT INTO loginAttempts (user_id, username, ip_address,successful,device_type) VALUES($1,$2,$3,$4,$5)",
+         [userId, username, req.socket.remoteAddress, false, deviceType]);
+        
+         await client.query(
+            `UPDATE users SET failed_login_attempts = 0, locked_until = NULL, is_locked = FALSE WHERE id = $1 AND locked_until IS NOT NULL
+             AND locked_until <= NOW()`,
+            [userId]
+        );
+
+
+        const resultUpdate= await client.query('update users set failed_login_attempts= failed_login_attempts +1 where username=$1',[username])
+
+        const isLocked= await client.query(`UPDATE users SET locked_until = CASE WHEN failed_login_attempts >= 3 THEN NOW() + INTERVAL '2 minutes' ELSE NULL END, is_locked = CASE WHEN failed_login_attempts >= 3 THEN TRUE  ELSE FALSE END WHERE username = $1`
+        ,[username])
+
+         return res.end(JSON.stringify({error:"invalid username or password!"}));
+
+        
+
        }
       
     })
