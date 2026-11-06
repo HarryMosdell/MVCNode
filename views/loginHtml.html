@@ -16,9 +16,15 @@ const form= document.querySelector("form");
    const firstName= document.querySelector(".name");
    const password= document.querySelector(".password");
    const message= document.querySelector(".message");
+   let deviceType;
 
-   form.addEventListener("input", (e)=> {
+   form.addEventListener("submit", (e)=> {
     e.preventDefault(); 
+
+    if(window.innerWidth>=1200) deviceType="laptop/desktop";
+    else if(window.innerWidth>600) deviceType="tablet";
+    else deviceType="Mobile";
+
     fetch("/loginAsk",  {
     method:"POST", 
     headers: {
@@ -27,7 +33,8 @@ const form= document.querySelector("form");
     
     body: JSON.stringify({
     name: firstName.value,
-    password: password.value
+    password: password.value,
+    deviceType: deviceType
     }) 
     }).then(async (res) => {
         const data = await res.json();
@@ -40,6 +47,9 @@ window.location.href = data.redirect;
 } else {
 message.textContent = data.error || "failed";
 message.style.color = "red";
+if(data.message){
+    message.textContent=data.message;
+} 
 }
 })
 
