@@ -81,12 +81,12 @@ export function addToBasket(req,res,skeleton,params){
 const reduceProducts= await client.query('update products set stock_amount= stock_amount-1 where id=$1 AND stock_amount >0 RETURNING stock_amount'
 ,[productId]);
 
-if(reduceProducts.rows.length===1 && reduceProducts.rows[0].stock_amount==0) {
+if(reduceProducts.rows.length===0) {
     res.writeHead(404, {
         "Content-Type": "application/json"
     });
-    return res.end(JSON.stringify({generalMessage:"out of stock",stock_amountMessage: "item is out of stocknnn", stock_amount:0 }))
-    }
+return;
+}
 
 let stock_amountMessage="";
 const stock_amount=reduceProducts.rows[0].stock_amount;
@@ -94,6 +94,8 @@ const stock_amount=reduceProducts.rows[0].stock_amount;
 if(stock_amount >5 && stock_amount <10)  stock_amountMessage= "stock is low in this item" ;
 
 else if(stock_amount >=1  && stock_amount <= 5)  stock_amountMessage= "stock is very low in this item" ;
+
+else if (stock_amount === 0)  stock_amountMessage = "item is out of stock";
 
 
 if(reduceProducts.rows.length>0) {
