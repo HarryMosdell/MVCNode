@@ -24,10 +24,26 @@ export function productsHtml(req,res,skeleton,params){
      res.end(finalPage);
 }
 
-export function getProducts(req,res,skeleton,params){
-    const products= [{id:1, name:"game boy", price: 20}, {id:2, name:"game boy color", price: 30 }];
+export async function getProducts(req,res,skeleton,params){
+    const products= await client.query('select * from products ORDER BY id ASC')
+    if(products.rowCount===0) {
+        res.end("no products in the system")
+    }
     res.setHeader("Content-Type",  "application/json");
-    res.end(JSON.stringify(products));
+    res.end(JSON.stringify(products.rows));
+}
+
+export function listProducts_adminHTML(req,res,skeleton,params){
+     const pageInfo = fs.readFileSync("./views/productList_admin.html", "utf8");
+     const finalPage= skeleton.replace('__info__', pageInfo)
+     res.setHeader("Content-Type", "text/html");
+     res.end(finalPage);
+    }
+
+
+export async function listProducts_admin(req,res,skeleton,params){
+const result= await client.query('select * from products');
+res.end(JSON.stringify(result.rows));
 }
 
 export function addToBasket(req,res,skeleton,params){
@@ -39,7 +55,7 @@ export function addToBasket(req,res,skeleton,params){
     );
 
     req.on('end', async()=>{
-    
+  
     const refreshToken = getCookie(req,"refreshToken")
 
     const data=  JSON.parse(body)
@@ -47,9 +63,11 @@ export function addToBasket(req,res,skeleton,params){
     const result= await client.query('select * from products where name=$1',
     [name])
 
+    const s_amount=result.rows[0].stock_amount;
 
     const productId= result.rows[0].id;
 
+    const productName= result.rows[0].name;
 
     let decoded;
    
@@ -60,6 +78,28 @@ export function addToBasket(req,res,skeleton,params){
      decoded=null;
     }   
    
+const reduceProducts= await client.query('update products set stock_amount= stock_amount-1 where id=$1 AND stock_amount >0 RETURNING stock_amount'
+,[productId]);
+
+if(reduceProducts.rows.length===1 && reduceProducts.rows[0].stock_amount==0) {
+    res.writeHead(404, {
+        "Content-Type": "application/json"
+    });
+    return res.end(JSON.stringify({generalMessage:"out of stock",stock_amountMessage: "item is out of stocknnn", stock_amount:0 }))
+    }
+
+let stock_amountMessage="";
+const stock_amount=reduceProducts.rows[0].stock_amount;
+
+if(stock_amount >5 && stock_amount <10)  stock_amountMessage= "stock is low in this item" ;
+
+else if(stock_amount >=1  && stock_amount <= 5)  stock_amountMessage= "stock is very low in this item" ;
+
+
+if(reduceProducts.rows.length>0) {
+ console.log(`Reduced stock amount for ${productName} new stock amount is ${stock_amount}`)
+}
+
 //user  basket 
 if(decoded) {
     const userId=decoded.id
@@ -72,7 +112,7 @@ if(decoded) {
         [productId, userId] )
         console.log(updateBasket);
         res.setHeader("Content-Type", "Application/json")
-        res.end(JSON.stringify("increased item qty in user basket"))
+        res.end(JSON.stringify({generalMessage:"increased item qty in user basket", stock_amount:stock_amount, stock_amountMessage:stock_amountMessage}))
     }
 
 else {
@@ -80,7 +120,7 @@ else {
    const insertIntoBasket = await client.query('insert into basket (product_id, user_id, user_type) values($1,$2,$3)', 
     [productId, userId, 'User']);
     res.setHeader("Content-Type", "Application/json")
-    res.end(JSON.stringify("increased item qty in user basket"))
+    res.end(JSON.stringify({generalMessage: "added item in user basket", stock_amount:stock_amount, stock_amountMessage:stock_amountMessage }))
 }
 }
 //adding to guest basket 
@@ -118,14 +158,16 @@ else {
         'UPDATE basket SET quantity = quantity +1  WHERE product_id = $1 AND guest_id=$2',
         [productId,guestID] )
         res.setHeader("Content-Type", "Application/json")
-        res.end(JSON.stringify("increased item qty in guest basket"))
+        res.end(JSON.stringify({generalMessage: "increased qty of item in gusest basket", stock_amount:stock_amount, stock_amountMessage:stock_amountMessage }))
+
     }
 
 else {
    const insertIntoBasket = await client.query('insert into basket (product_id, guest_id) values($1,$2)', 
     [productId, guestID]);
     res.setHeader("Content-Type", "Application/json")
-    res.end(JSON.stringify("added item to guest basket"))
+    res.end(JSON.stringify({generalMessage: "added item to guest basket", stock_amount:stock_amount, stock_amountMessage:stock_amountMessage }))
+
 }
 
 }
