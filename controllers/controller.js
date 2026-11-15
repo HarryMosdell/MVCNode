@@ -264,10 +264,19 @@ export function removeBasket(req,res, skeleton, params){
  
     if(decoded) {
     const userId= decoded.id;
-    const result=await client.query('delete from basket where product_id=$1 and user_id=$2', 
-    [productId, userId]);
 
-    if (result.rowCount>0) {
+    const result=await client.query('delete from basket where product_id=$1 and user_id=$2 RETURNING quantity', 
+    [productId, userId]);
+ 
+    if (result.rowCount === 0) {
+        res.statusCode = 404;
+        return res.end(JSON.stringify("Item not found"));
+    }
+   const quantity= result.rows[0].quantity;
+   const reAddingProduct= await client.query('update products set stock_amount= stock_amount+$1 where id =$2', 
+   [quantity,productId]);
+
+    if (result.rowCount>0 && reAddingProduct.rowCount>0) {
     console.log(result);
     res.setHeader("Content-Type", "application/json")
     res.end(JSON.stringify("deleted user item"))
@@ -280,10 +289,19 @@ export function removeBasket(req,res, skeleton, params){
 
        const guestID= decoded.id;
 
-      const result= await client.query('delete from basket where product_id=$1 AND guest_id=$2',
-       [productId,guestID]);
+    const result=await client.query('delete from basket where product_id=$1 and guest_id=$2 RETURNING quantity', 
+    [productId, guestID]);
+ 
+    if (result.rowCount === 0) {
+        res.statusCode = 404;
+        return res.end(JSON.stringify("Item not found"));
+    }
 
-       if(result.rowCount>0){
+   const quantity= result.rows[0].quantity;
+   const reAddingProduct= await client.query('update products set stock_amount= stock_amount+$1 where id =$2', 
+   [quantity,productId]);
+
+       if(result.rowCount>0 && reAddingProduct.rowCount>0){
         res.setHeader("Content-Type", "application/json")
         res.end(JSON.stringify("deleted guest item"))
        }
@@ -318,8 +336,18 @@ export function updateBasket(req,res, skeleton, params) {
          const userId=refreshTokenDecoded.id;
  
          if(data.action==="increase") {
+            const reAddingProduct= await client.query('update products set stock_amount=stock_amount -1 where id=$1 AND stock_amount > 0 RETURNING stock_amount',
+            [productId]);
+
+            if (reAddingProduct.rowCount === 0) {
+               res.statusCode = 400;
+               return res.end(JSON.stringify("Out of stock"));
+           }
+
              const result= await client.query('update basket set quantity=quantity +1 where user_id=$1 and product_id=$2',
-                 [userId,productId]);
+             [userId,productId]);
+            
+
              console.log(result);
              if(result.rowCount>0) {
                  res.end(JSON.stringify("increased quantity"));
@@ -344,6 +372,9 @@ export function updateBasket(req,res, skeleton, params) {
                  [userId, productId]
              );
  
+             const reAddingProduct= await client.query('update products set stock_amount=stock_amount +1 where id=$1',
+             [productId]);
+
              if(updateQuery.rowCount>0) {
                  res.end(JSON.stringify("decreased quantity"));
              }
@@ -358,6 +389,7 @@ export function updateBasket(req,res, skeleton, params) {
  
          catch {
              res.statusCode=404;
+             console.log("fff");
              res.end();
              return;
          }
@@ -365,6 +397,22 @@ export function updateBasket(req,res, skeleton, params) {
          const guestID= guestDecoded.id;
  
          if(data.action==="increase") {
+
+            const stockResult = await client.query(
+                `UPDATE products
+                 SET stock_amount = stock_amount - 1
+                 WHERE id = $1 AND stock_amount > 0
+                 RETURNING stock_amount`,
+                [productId]
+            );
+  
+            if (stockResult.rowCount === 0) {
+                res.statusCode = 400;
+                return res.end(JSON.stringify({
+                    message: "Out of stock"
+                }));
+            }
+
              const result= await client.query('update basket set quantity=quantity +1 where guest_id=$1 and product_id=$2',
                  [guestID,productId]);
              console.log(result);
@@ -385,13 +433,24 @@ export function updateBasket(req,res, skeleton, params) {
                  res.end(JSON.stringify(" cannot decrease if the item is equal to 1"));
                  return;
              }
+               const updateResult = await client.query(
+               `UPDATE basket
+                SET quantity = quantity - 1
+                WHERE guest_id = $1 AND product_id = $2`,
+                [guestID, productId]
+              );
+
+
+             if (updateResult.rowCount > 0) {
+              await client.query(
+             `UPDATE products
+              SET stock_amount = stock_amount + 1
+              WHERE id = $1`,
+              [productId]
+              );
+              }
  
-             const updateQuery= await client.query(
-                 'UPDATE basket SET quantity = quantity - 1  WHERE guest_id = $1 AND product_id = $2',
-                 [guestID, productId]
-             );
- 
-             if(updateQuery.rowCount>0) {
+             if(updateResult.rowCount>0) {
                  res.end(JSON.stringify("decreased quantity"));
              }
          }
@@ -920,6 +979,7 @@ export async function clearBasket(info){
     const user_id=info.user_id;
 
     if(user_id) {
+
    const result=await client.query('delete from basket where user_id=$1',
    [user_id])
 
