@@ -79,7 +79,7 @@ fetch("/getBasket")
 
 </div>
                         
-                    
+<p data-id="${item.product_id}" class="update_message"></p>
 
                     <p class="subTotal" data-id="${item.product_id}">
                         Subtotal: £${subtotal.toFixed(2)}
@@ -187,10 +187,22 @@ function updateBasket(ob){
 
       body: JSON.stringify(ob)
 
-    }).then(res=>    
-        data=res.json()
-    ).then((data)=> {console.log(data)
-      
+    }).then(async (res)=> {    
+       const data= await res.json();
+       const message = document.querySelector(
+                `.update_message[data-id="${ob.productId}"]`
+            );
+       if (!res.ok) {
+          
+
+            message.textContent = typeof data === "string"
+        ? data
+        : data.message || "Unable to update basket";
+            return;
+        }
+else{
+    message.textContent=data;
+}
         const priceElement = document.querySelector(
             `.priceSpan[data-id="${ob.productId}"]`
         );
@@ -238,7 +250,7 @@ function updateBasket(ob){
         basketTotalElement.textContent=  Number(newBasketTotal).toFixed(2);
 
         itemsTotalElement.textContent= newItemTotal;
-    })
+    
+})
 }
-
 </script>
