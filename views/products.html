@@ -1,3 +1,22 @@
+<style>
+
+.low-stock {
+    color: orange!important;
+
+}
+
+.very_low_stock {
+    color: #ff5722!important;
+
+}
+
+.out-of-stock {
+    color: red!important;
+    
+}
+
+</style>
+
 <div class="products-page">
 
     <h1>Products</h1>
@@ -13,12 +32,25 @@ fetch("http://localhost:3083/getProducts")
 .then((products)=> {
 
   products.forEach(product => {
-  const string= ` <div class="product">
+  let string= ` <div class="product">
         <h2>${product.name}</h2>
         <p>${product.price}</p>
         <a style="color:white;" href="/products/${product.id}">View Product</a>
         <a class="addButton" style="color:white;"  data-id="${product.id}" data-name="${product.name}" data-price="${product.price}">Add Product To Basket</a>
-    </div> `
+     `
+   
+     if (product.stock_amount === 0) {
+        string += `<p class="out-of-stock">Out of stock</p>`;
+} 
+else if (product.stock_amount >= 6 && product.stock_amount<=10) {
+    string += `<p class="low-stock"> low stock</p>`;
+}
+
+else if (product.stock_amount >= 1 && product.stock_amount<=5) {
+    string += `<p class="very_low_stock">Very low stock</p>`;
+}
+
+string += `</div>`;
 const productContainer=document.querySelector(".products")
 productContainer.insertAdjacentHTML("beforeend", string);
 });
@@ -45,7 +77,56 @@ headers: {"Content-Type": "application/json"},
 
 body: JSON.stringify({id:id, name: name , price:price } )
 
-}).then((res)=> res.json()).then((data)=> alert(data))
+}).then((res)=> res.json())
+.then((data)=> {
+    const product = e.target.closest(".product");
+    if (data.stock_amount > 5 && data.stock_amount <10 ) {
+            alert(`Low stock for ${name}! Only ${data.stock_amount} remaining. ${data.generalMessage}`);
+            console.log(data.stock_amountMessage);
+           let stock_message=product.querySelector(".low-stock");
+           if(!stock_message){
+           stock_message=document.createElement("p");
+           stock_message.textContent=data.stock_amountMessage;
+           stock_message.classList.add("low-stock")
+           product.insertAdjacentElement("beforeend",stock_message)
+           }
+        }
+
+       else if (data.stock_amount >= 1 && data.stock_amount <= 5) {
+            alert(`Low stock for ${name}! Only ${data.stock_amount} remaining. ${data.generalMessage}`);
+            let low_stock_message=product.querySelector(".low-stock");
+            if(low_stock_message){
+                low_stock_message.remove();
+            }
+            let stock_message=product.querySelector(".very_low_stock")
+
+           if(!stock_message){
+           stock_message=document.createElement("p");
+           stock_message.textContent=data.stock_amountMessage;
+           stock_message.classList.add("very_low_stock")
+           product.insertAdjacentElement("beforeend",stock_message)
+        }
+    }
+
+        else if (data.stock_amount===0) {
+            alert(`Very low stock for ${name}! Only ${data.stock_amount} remaining. `);
+            let very_low_stock_message=product.querySelector(".very_low_stock");
+            console.log(data.stock_amountMessage)
+            if(very_low_stock_message){
+            very_low_stock_message.remove();
+            }
+
+        let stock_message=product.querySelector(".out-of-stock")
+
+           if(!stock_message) {
+           stock_message=document.createElement("p");
+           stock_message.classList.add("out-of-stock")
+           product.insertAdjacentElement("beforeend",stock_message)
+        }
+        stock_message.textContent = data.stock_amountMessage;
+        
+    }
+})
 
 }
 
