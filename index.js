@@ -1,7 +1,7 @@
 import http from "node:http";
 import fs from "node:fs";
 import { dbConnect, client } from "./database/dbConnection.js";
-import { home, users, loginHtml, login, userGet, authUser,tryRefresh, orders, productsHtml, getProducts, addToBasket, basketHtml, renderBasket, removeBasket, updateBasket, checkoutHtml, checkout ,createOrder,ViewOrders, stripWebhook, usersHtml, logOut,adminDashboardHtml, viewSessions} from "./controllers/controller.js";
+import { home, users, loginHtml, login, userGet, authUser,tryRefresh, orders, productsHtml, getProducts, addToBasket, basketHtml, renderBasket, removeBasket, updateBasket, checkoutHtml, checkout ,createOrder,ViewOrders, stripWebhook, usersHtml, logOut,adminDashboardHtml, viewSessions, listProducts_admin, listProducts_adminHTML} from "./controllers/controller.js";
 import { url } from "node:inspector";
 import bcrypt from "bcrypt";
 
@@ -26,7 +26,9 @@ const routes= {
     "/usersData":users,
     "/adminDashboard": adminDashboardHtml,
     "/viewUserSessions": viewSessions,
-    "/logOut": logOut
+    "/logOut": logOut, 
+    "/admin/products": listProducts_adminHTML, 
+    "/admin/listProducts_admin": listProducts_admin
 }
 
 dbConnect();
